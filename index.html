@@ -1,0 +1,268 @@
+<!-- File: index.html -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="考えをすぐ書き出し、整理し、保存して、共有できるマインドマップアプリ">
+<meta name="color-scheme" content="light dark">
+<title>MindFlow – マインドマップ</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%A0%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app" id="app" data-theme="light">
+  <header class="topbar" role="toolbar" aria-label="マップの操作">
+    <div class="tb-group tb-title">
+      <button type="button" class="btn icon" data-cmd="sidebar" id="btn-sidebar" aria-controls="sidebar" aria-expanded="true" aria-label="マップ一覧とテンプレートの表示切替" title="マップ一覧・テンプレート">☰</button>
+      <span class="brand" aria-hidden="true">🧠</span>
+      <label class="sr-only" for="title">ファイル名</label>
+      <input id="title" class="title-input" type="text" maxlength="80" placeholder="マップ名" autocomplete="off" title="クリックしてマップ名を変更">
+      <span id="status" class="save-status" role="status"></span>
+    </div>
+    <div class="tb-group">
+      <button type="button" class="btn icon" data-cmd="undo" id="btn-undo" title="元に戻す (Ctrl+Z)" aria-label="元に戻す">↶</button>
+      <button type="button" class="btn icon" data-cmd="redo" id="btn-redo" title="やり直し (Ctrl+Shift+Z)" aria-label="やり直し">↷</button>
+      <div class="search" role="search">
+        <span aria-hidden="true">🔍</span>
+        <label class="sr-only" for="search">ノードを検索</label>
+        <input id="search" type="search" placeholder="検索 (Ctrl+F)" autocomplete="off">
+        <span id="search-count" class="search-count" aria-live="polite"></span>
+        <button type="button" class="btn icon sm" id="search-prev" aria-label="前の検索結果" title="前の結果 (Shift+Enter)">↑</button>
+        <button type="button" class="btn icon sm" id="search-next" aria-label="次の検索結果" title="次の結果 (Enter)">↓</button>
+      </div>
+    </div>
+    <div class="tb-group tb-right">
+      <label class="sr-only" for="layout">レイアウト</label>
+      <select id="layout" class="btn" title="レイアウト">
+        <option value="balanced">⇆ 左右に展開</option>
+        <option value="right">→ 右方向</option>
+      </select>
+      <button type="button" class="btn icon" data-cmd="theme" id="btn-theme" aria-label="ダークモードに切り替え" title="ダークモードに切り替え">🌙</button>
+      <button type="button" class="btn icon" data-cmd="panel" id="btn-panel" aria-label="編集パネルの表示切替" title="編集パネルの表示切替" aria-pressed="true">▤</button>
+      <button type="button" class="btn icon" data-cmd="help" aria-label="操作ガイドを開く" title="操作ガイド (?)">?</button>
+      <button type="button" class="btn primary" data-cmd="export" id="btn-export" title="PNG / PDF / SVG / JSON / Markdown に書き出し">⇪ <span class="lbl">書き出し・共有</span></button>
+    </div>
+  </header>
+
+  <div class="body">
+    <aside class="sidebar" id="sidebar" aria-label="テンプレートとマップ一覧">
+      <section class="side-sec">
+        <h2>＋ 新しいマップ</h2>
+        <div class="tpl-list" id="tpl-list"></div>
+      </section>
+      <section class="side-sec">
+        <h2>📂 マップ一覧</h2>
+        <label class="sr-only" for="map-filter">マップを絞り込み</label>
+        <input id="map-filter" class="side-input" type="search" placeholder="名前で絞り込み" autocomplete="off">
+        <ul class="map-list" id="map-list"></ul>
+      </section>
+      <section class="side-sec" id="cur-sec">
+        <h2>🗂 このマップ</h2>
+        <div class="side-actions">
+          <button type="button" class="btn sm" data-cmd="dup-map">📄 複製</button>
+          <button type="button" class="btn sm" data-cmd="json-map">💾 JSONで保存</button>
+          <button type="button" class="btn sm danger" data-cmd="del-map">🗑 ゴミ箱へ</button>
+        </div>
+      </section>
+      <section class="side-sec">
+        <h2>📥 読み込み・バックアップ</h2>
+        <div class="side-actions">
+          <button type="button" class="btn sm" data-cmd="import">📥 JSONを読み込む</button>
+          <button type="button" class="btn sm" data-cmd="backup">🗜 全マップをバックアップ</button>
+        </div>
+        <p class="hint">入れ子形式・id/parent の平坦形式・バックアップ形式に対応（1ファイル5MBまで、複数選択可）。JSONファイルを画面にドロップしても読み込めます。</p>
+      </section>
+      <section class="side-sec">
+        <details id="trash-box">
+          <summary id="trash-summary">ゴミ箱</summary>
+          <div id="trash-list"></div>
+        </details>
+      </section>
+      <section class="side-sec">
+        <details>
+          <summary>ℹ️ 使い方と制約</summary>
+          <ul class="notes">
+            <li>キャンバスをクリックしてから Tab（子）／ Enter（同階層）で追加。</li>
+            <li>右上の ? で全ショートカットを表示。</li>
+            <li>キャンバスで Esc を押して選択を外すと、Tab で他の操作へ移動できます。</li>
+            <li>データはこのブラウザ内（localStorage）にのみ保存されます。別の端末やブラウザとは同期されません。</li>
+            <li>ブラウザのサイト データを消去するとマップも消えます。定期的にバックアップしてください。</li>
+            <li>共有リンクやリアルタイム共同編集には未対応です（ファイルで共有してください）。</li>
+            <li>元に戻す履歴は、マップの切替やページ再読み込みでリセットされます。</li>
+          </ul>
+        </details>
+      </section>
+      <p class="hint" id="usage"></p>
+    </aside>
+    <div class="sidebar-back" id="sidebar-back" hidden></div>
+
+    <main class="stage" id="stage">
+      <div class="viewport" id="viewport" tabindex="0" role="tree"
+           aria-label="マインドマップ。矢印キーでノード間を移動、Tabで子ノード、Enterで同じ階層のノードを追加、F2で編集、Deleteで削除、?でショートカット一覧。Escで選択を解除するとTabで他の操作へ移動できます。">
+        <div class="world" id="world">
+          <svg class="edges" id="edges" aria-hidden="true"></svg>
+          <div class="nodes" id="nodes"></div>
+          <textarea id="editor" class="node-editor" hidden aria-label="ノードのテキストを編集（Enterで確定、Shift+Enterで改行、Escで取り消し）" maxlength="500" rows="1" spellcheck="false"></textarea>
+        </div>
+      </div>
+
+      <div class="focus-bar" id="focus-bar" hidden></div>
+
+      <div class="empty-hint" id="empty-hint" hidden>
+        <p>中心テーマを選んで <kbd>Tab</kbd> を押すと枝を追加できます。</p>
+        <button type="button" class="btn primary sm" data-cmd="add-first">＋ 最初の枝を追加</button>
+      </div>
+
+      <section class="onboard" id="onboard" hidden aria-labelledby="onboard-title">
+        <h2 id="onboard-title">👋 MindFlow へようこそ</h2>
+        <ol>
+          <li>ノードをクリックして選択</li>
+          <li><kbd>Tab</kbd> で子ノード、<kbd>Enter</kbd> で同じ階層に追加</li>
+          <li>文字を入力して <kbd>Enter</kbd> で確定</li>
+          <li>ドラッグで移動、別のノードに重ねて付け替え</li>
+        </ol>
+        <p class="onboard-note">変更はこのブラウザに自動保存されます。右上の「書き出し・共有」から画像やPDFにできます。</p>
+        <div class="row">
+          <button type="button" class="btn sm" data-cmd="help">ショートカット一覧</button>
+          <button type="button" class="btn primary sm" data-cmd="onboard-close">はじめる</button>
+        </div>
+      </section>
+
+      <div class="zoom-ctrl" id="zoom-ctrl" role="group" aria-label="表示倍率">
+        <button type="button" class="btn icon sm" data-cmd="zoom-out" aria-label="縮小" title="縮小 (-)">−</button>
+        <button type="button" class="btn sm zoom-label" data-cmd="zoom-reset" id="zoom-label" aria-label="倍率を100%に戻す" title="100%に戻す">100%</button>
+        <button type="button" class="btn icon sm" data-cmd="zoom-in" aria-label="拡大" title="拡大 (+)">＋</button>
+        <button type="button" class="btn icon sm" data-cmd="fit" aria-label="全体表示" title="全体表示 (0)">⤢</button>
+        <button type="button" class="btn icon sm opt" data-cmd="center" aria-label="選択中のノードへ移動" title="選択中のノードへ移動">◎</button>
+        <button type="button" class="btn icon sm opt" data-cmd="minimap" id="btn-minimap" aria-label="ミニマップの表示切替" title="ミニマップの表示切替" aria-pressed="true">🗺</button>
+      </div>
+
+      <div class="action-bar" id="action-bar" role="toolbar" aria-label="ノード操作">
+        <button type="button" class="btn sm" data-cmd="add-child" title="子ノードを追加 (Tab)">＋<span class="lbl">子</span> <kbd>Tab</kbd></button>
+        <button type="button" class="btn sm" data-cmd="add-sibling" data-need="nonroot" title="同じ階層に追加 (Enter)">＋<span class="lbl">同階層</span> <kbd>Enter</kbd></button>
+        <button type="button" class="btn sm" data-cmd="edit" data-need="sel" title="テキストを編集 (F2)">✎<span class="lbl">編集</span></button>
+        <button type="button" class="btn sm" data-cmd="duplicate" data-need="nonroot" title="複製 (Ctrl+D)">⧉<span class="lbl">複製</span></button>
+        <button type="button" class="btn sm" data-cmd="collapse" data-need="kids" title="折りたたみ・展開 (Ctrl+/)">⊟<span class="lbl">折りたたみ</span></button>
+        <button type="button" class="btn sm" data-cmd="focus" data-need="sel" title="この枝だけを表示 (F)">◉<span class="lbl">フォーカス</span></button>
+        <button type="button" class="btn sm" data-cmd="details" title="色・アイコン・ラベル・メモを編集">☰<span class="lbl">詳細</span></button>
+        <button type="button" class="btn sm danger" data-cmd="delete" data-need="nonroot" title="削除 (Delete)">🗑<span class="lbl">削除</span></button>
+      </div>
+
+      <canvas class="minimap" id="minimap" role="img" aria-label="ミニマップ。クリックまたはドラッグでその位置へ移動"></canvas>
+
+      <div class="empty-state" id="empty-state" hidden>
+        <div class="empty-card">
+          <h2>マップがまだありません</h2>
+          <p>テンプレートを選ぶか、サンプルで操作を試してみましょう。</p>
+          <div class="empty-actions">
+            <button type="button" class="btn primary" data-tpl="sample">📘 使い方サンプルを開く</button>
+            <button type="button" class="btn" data-tpl="blank">⬜ 空白のマップ</button>
+            <button type="button" class="btn" data-tpl="brainstorm">💡 ブレインストーミング</button>
+          </div>
+          <p class="hint">左のメニューから、他のテンプレートやJSONファイルの読み込みも利用できます。</p>
+        </div>
+      </div>
+
+      <div class="toast" id="toast" hidden></div>
+    </main>
+
+    <aside class="panel" id="panel" aria-label="ノードの編集パネル"></aside>
+  </div>
+
+  <div class="banner" id="banner" role="alert" hidden>
+    <span id="banner-msg"></span>
+    <span class="banner-acts" id="banner-acts"></span>
+  </div>
+
+  <div class="modal-back" id="help" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <div class="panel-head">
+        <h2 id="help-title">操作ガイド</h2>
+        <button type="button" class="btn icon sm" data-cmd="modal-close" aria-label="閉じる">✕</button>
+      </div>
+      <h3>書き出す</h3>
+      <dl class="keys">
+        <dt><kbd>Tab</kbd></dt><dd>子ノードを追加して入力開始</dd>
+        <dt><kbd>Enter</kbd></dt><dd>同じ階層にノードを追加（入力中は確定）</dd>
+        <dt><kbd>F2</kbd> / <kbd>Space</kbd> / ダブルクリック</dt><dd>テキストを編集</dd>
+        <dt>入力中 <kbd>Shift</kbd>+<kbd>Enter</kbd></dt><dd>改行</dd>
+        <dt>入力中 <kbd>Esc</kbd></dt><dd>入力を取り消す</dd>
+        <dt><kbd>Ctrl</kbd>+<kbd>V</kbd></dt><dd>貼り付け（箇条書きテキストは階層付きで取り込み）</dd>
+      </dl>
+      <h3>整理する</h3>
+      <dl class="keys">
+        <dt>ドラッグ</dt><dd>自由に移動。別のノードに重ねると子に、上端・下端に重ねると前後に移動</dd>
+        <dt><kbd>Alt</kbd>+<kbd>↑</kbd><kbd>↓</kbd></dt><dd>同じ階層内で並べ替え</dd>
+        <dt><kbd>Shift</kbd>+<kbd>Tab</kbd></dt><dd>1つ上の階層へ移動</dd>
+        <dt><kbd>Ctrl</kbd>+<kbd>/</kbd></dt><dd>折りたたみ・展開</dd>
+        <dt><kbd>Ctrl</kbd>+<kbd>D</kbd></dt><dd>枝ごと複製</dd>
+        <dt><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>X</kbd></dt><dd>枝ごとコピー / 切り取り</dd>
+        <dt><kbd>Ctrl</kbd>+<kbd>Enter</kbd></dt><dd>完了・未完了の切り替え</dd>
+        <dt><kbd>Delete</kbd> / <kbd>Backspace</kbd></dt><dd>枝ごと削除（元に戻せます）</dd>
+      </dl>
+      <h3>見つける・表示</h3>
+      <dl class="keys">
+        <dt><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd></dt><dd>ノード間を移動</dd>
+        <dt><kbd>Ctrl</kbd>+<kbd>F</kbd></dt><dd>検索（Enterで次、Shift+Enterで前）</dd>
+        <dt><kbd>F</kbd></dt><dd>選択した枝だけを表示（フォーカス）</dd>
+        <dt><kbd>Esc</kbd></dt><dd>フォーカス解除 → 選択解除</dd>
+        <dt><kbd>0</kbd> / <kbd>+</kbd> / <kbd>-</kbd></dt><dd>全体表示 / 拡大 / 縮小</dd>
+        <dt><kbd>Shift</kbd>+矢印</dt><dd>画面を移動</dd>
+        <dt>ホイール / <kbd>Ctrl</kbd>+ホイール</dt><dd>画面の移動 / 拡大縮小（タッチではピンチ）</dd>
+      </dl>
+      <h3>その他</h3>
+      <dl class="keys">
+        <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd></dt><dd>元に戻す</dd>
+        <dt><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></dt><dd>やり直し</dd>
+        <dt><kbd>Ctrl</kbd>+<kbd>S</kbd></dt><dd>すぐに保存（通常は自動保存）</dd>
+        <dt><kbd>?</kbd></dt><dd>このガイドを開く</dd>
+      </dl>
+      <p class="hint">Mac では Ctrl の代わりに ⌘ も使えます。キーボード操作はキャンバスを選択している間に有効です。</p>
+    </div>
+  </div>
+
+  <div class="modal-back" id="export" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="export-title">
+      <div class="panel-head">
+        <h2 id="export-title">⇪ 書き出し・共有</h2>
+        <button type="button" class="btn icon sm" data-cmd="modal-close" aria-label="閉じる">✕</button>
+      </div>
+      <p class="hint" id="export-scope"></p>
+      <label class="chk-row"><input type="checkbox" id="exp-light" checked> 白背景（ライトテーマの配色）で画像・PDFを作る</label>
+      <h3>画像・文書</h3>
+      <div class="export-grid">
+        <button type="button" class="btn exp" data-exp="png">🖼 PNG画像<small>高解像度の画像</small></button>
+        <button type="button" class="btn exp" data-exp="pdf">📄 PDF<small>印刷・配布用（1ページ）</small></button>
+        <button type="button" class="btn exp" data-exp="svg">✒ SVG<small>拡大しても劣化しない</small></button>
+      </div>
+      <h3>データ</h3>
+      <div class="export-grid">
+        <button type="button" class="btn exp" data-exp="json">💾 JSON<small>完全に復元できる形式</small></button>
+        <button type="button" class="btn exp" data-exp="md">📝 Markdown<small>箇条書きのアウトライン</small></button>
+        <button type="button" class="btn exp" data-exp="copy">📋 アウトラインをコピー<small>チャットや文書に貼り付け</small></button>
+      </div>
+      <div id="share-sec" hidden>
+        <h3>共有</h3>
+        <div class="export-grid">
+          <button type="button" class="btn exp" data-exp="share">📤 画像を共有<small>端末の共有メニューを開く</small></button>
+        </div>
+      </div>
+      <p class="export-msg" id="export-msg" role="status"></p>
+    </div>
+  </div>
+
+  <input type="file" id="file-input" accept=".json,application/json" multiple hidden>
+
+  <div class="loading" id="loading" role="status">
+    <div class="spinner" aria-hidden="true"></div>
+    <div id="loading-msg">読み込んでいます…</div>
+  </div>
+
+  <div class="sr-only" id="live" aria-live="polite"></div>
+</div>
+<noscript>このアプリを使うには JavaScript を有効にしてください。</noscript>
+<script src="js/core.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
